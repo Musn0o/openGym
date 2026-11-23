@@ -66,18 +66,21 @@ function stateQueue(S) {
   if (q.strict === true && !(q.since > 0)) return null; // a strict pass with no clock, as in the frontend
   const routines = S.routines, tz = S.reminder?.tz;
   const hit = derived.get(q);
+  const skippedRef = q.skipped;
   if (hit && hit.routines === routines && hit.routineCount === (routines?.length ?? 0) && hit.ids === q.ids
-    && hit.idCount === q.ids.length && hit.rawStartsOn === q.startsOn && hit.since === q.since && hit.tz === tz) return hit;
+    && hit.idCount === q.ids.length && hit.rawStartsOn === q.startsOn && hit.since === q.since && hit.tz === tz
+    && hit.skippedRef === skippedRef) return hit;
   const known = new Set((routines || []).map(r => r?.id));
   const startsOn = typeof q.startsOn === 'string' ? q.startsOn : (q.since > 0 ? dayIn(q.since, tz) : null);
   // First valid occurrence of each id — the same normalization as the frontend's queueOf.
   const ids = [...new Set(q.ids)].filter(id => known.has(id));
   const want = new Set(ids), names = new Map();
   for (const r of routines || []) if (want.has(r?.id) && !names.has(r.id)) names.set(r.id, r.name);
+  const skipped = Array.isArray(q.skipped) ? q.skipped.filter(id => want.has(id)) : [];
   const entry = {
     routines, routineCount: routines?.length ?? 0, ids: q.ids, idCount: q.ids.length,
-    rawStartsOn: q.startsOn, since: q.since, tz, known,
-    queue: ids.length && startsOn ? { ids, startsOn, want, names } : null,
+    rawStartsOn: q.startsOn, since: q.since, tz, known, skipped, skippedRef,
+    queue: ids.length && startsOn ? { ids, startsOn, want, names, skipped } : null,
   };
   derived.set(q, entry);
   return entry;
@@ -86,7 +89,7 @@ function stateQueue(S) {
 // workouts. A session's name is that of the first routine with its id, as the rule reads it. The
 // pass stops once every session is done.
 function doneIds(S, q, today) {
-  const { want, names } = q, done = new Set();
+  const { want, names } = q, done = new Set(q.skipped || []);
   for (const w of S.workouts || []) {
     if (done.size === want.size) break;
     const ids = routineIdsOf(w);

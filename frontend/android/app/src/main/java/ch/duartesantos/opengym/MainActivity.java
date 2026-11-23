@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ReminderSoundPlugin.class);
         // Text size "Like the phone": the system font scale goes to the page, not to the WebView's zoom.
         registerPlugin(TextScalePlugin.class);
+        registerPlugin(MusicPlayerPlugin.class);
         // Settings → Screen orientation (#821), before the first frame: no turn on the way in.
         OrientationPlugin.applySaved(this);
         super.onCreate(savedInstanceState);

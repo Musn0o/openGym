@@ -56,6 +56,7 @@ export const PAGES = {
   'gym-edit': { title: 'Your gym', icon: 'mapPin', tint: 'var(--orange)', parent: 'gym' },
   // Seasonal themes (lib/seasonal.js), one section per theme.
   themes: { title: 'Seasonal themes', icon: 'pumpkin', tint: 'var(--orange)', parent: 'look', mod: 'seasonal' },
+  music: { title: 'Music', icon: 'music', tint: 'var(--pink)', group: 'extras', mod: 'music' },
   // The phone's health store, one page per platform (until 1.4.4 a section of Data & backup).
   'apple-health': { title: 'Apple Health', icon: 'heart', tint: 'var(--red)', parent: 'integrations', mod: 'health', kw: 'apple health healthkit heart rate weight scale watch sync workouts' },
   'health-connect': { title: 'Health Connect', icon: 'heart', tint: 'var(--red)', parent: 'integrations', mod: 'health', kw: 'health connect google fit samsung fitbit garmin heart rate weight scale watch sync workouts' },
@@ -65,7 +66,7 @@ export const PAGE_IDS = Object.keys(PAGES)
 // The root, top to bottom, under headings (#1105): what you change week to week, what you set once,
 // what openGym talks to, then housekeeping. Whether a row shows is onRoot's call.
 export const ROOT_GROUPS = [
-  { title: 'Training', ids: ['workout', 'alerts', 'plan', 'reminders'] },
+  { title: 'Training', ids: ['workout', 'alerts', 'plan', 'reminders', 'music'] },
   { title: 'Set once', ids: ['units', 'equipment', 'look', 'modules'] },
   { title: 'Connections', ids: ['watches', 'zepp', 'integrations', 'coach'] },
   { ids: ['data', 'about'] },
@@ -140,6 +141,7 @@ const MODULE_KW = {
   coach: 'ai coach llm assistant review suggestions',
   integrations: 'integrations webhook webhooks home assistant n8n mcp automation',
   seasonal: 'seasonal season halloween theme decoration',
+  music: 'music playlist songs audio workout player background screen off',
 }
 // The words for a theme that only exists in its own weeks (lib/seasonal.js `hidden`): outside
 // December "christmas" or "advent" finds nothing at all.

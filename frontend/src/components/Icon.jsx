@@ -162,6 +162,8 @@ const P = {
   /* ---- v1.3.11: one icon per concept (the Settings redesign names them) ---- */
   // sound, not "notification": a speaker with two waves
   speaker: <><path d="M4.6 9.4h3.2l4.6-3.8v12.8l-4.6-3.8H4.6Z" /><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18 6.8a7.4 7.4 0 0 1 0 10.4" /></>,
+  // a musical note: for the workout music player
+  music: <><path d="M9 18V6l10-2v12" /><circle cx="7" cy="18" r="2.2" /><circle cx="17" cy="16" r="2.2" /></>,
   // a phone with buzz marks on both sides
   vibrate: <><rect x="8" y="4.2" width="8" height="15.6" rx="2" /><path d="M4.8 9v6M19.2 9v6M2.6 10.6v2.8M21.4 10.6v2.8" /></>,
   // keep the screen on (sun stays flash and the light theme)

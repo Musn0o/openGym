@@ -15,6 +15,8 @@
 //     rotationId?: string   set only by the in-app rotation editor (lib/rotation.js): this pass
 //                           is managed here and refills itself when complete. A planner's queue
 //                           omits it and is never rewritten by the app.
+//     skipped?: string[]    routine ids marked done without a workout (Plan → Mark done). Counts as
+//                           done for rotation progress only; never creates history/stats.
 //   }
 //
 // The app writes `S.queue` itself only for the in-app rotation feature (lib/rotation.js, marked
@@ -88,10 +90,12 @@ export const queueOf = S => {
 }
 
 // The DONE RULE for one workout and one session, as of `today` — `isDone` asks it across the log.
+// `q.skipped` holds routine ids the user marked done without a workout (Plan → Mark done). It is
+// a synthetic credit, never a logged session, so it never creates history/stats; undo removes it.
 const countsFor = (S, q, w, id, today) => routineIdsOf(w).includes(id)
   && ((q.since > 0 && (w.start ?? 0) >= q.since)
     || (q.strict !== true && String(w.d || '') >= q.startsOn && String(w.d || '') <= today && namesRoutine(w, S.routines.find(r => r.id === id)?.name)))
-const isDone = (S, q, id, today) => S.workouts.some(w => countsFor(S, q, w, id, today))
+const isDone = (S, q, id, today) => q.skipped?.includes(id) || S.workouts.some(w => countsFor(S, q, w, id, today))
 
 /** The week's sessions already done as of `today`, in slot order. `[]` without a queue. */
 export function queueDone(S, today = todayISO()) {

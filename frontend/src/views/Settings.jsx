@@ -84,6 +84,7 @@ import { warmupAutoOf } from '../lib/warmup-ramp.js'
 import { MACHINE_EQ, machinesSummary } from '../lib/machine-kinds.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import LiveWidgetSettings, { LiveWidgetCustomise } from '../components/LiveWidgetSettings.jsx'
+import MusicSettingsPage from '../components/MusicSettings.jsx'
 import { liveOff } from '../lib/live-activity.js'
 import ForgottenRows from '../components/ForgottenRows.jsx'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC, profileRule } from '../lib/progression.js'
@@ -604,6 +605,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     'live-custom': () => <LiveWidgetCustomise />,
     'gym-find': () => <GymFindPage />,
     'gym-edit': () => <GymEditPage />,
+    music: () => <MusicSettingsPage />,
     workout: () => <>
       {/* Warm-ups that build themselves from the work weight (#156, lib/warmup-ramp.js). Off by
           default, so nothing changes until someone asks; an exercise can still pick Auto, its own

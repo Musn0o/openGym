@@ -29,7 +29,7 @@ import { programmeChip } from '../lib/programmes.js'
 import { markUndone, undoMarks } from '../lib/sync-merge.js'
 import {
   scheduleModeOf, queueRecovery, rotationIds, saveRotation, startNewPass, startPass, stopPass,
-  chooseRotation, chooseFixedWeek, sequenceOf, isSimpleSequence, segmentAt, REST,
+  chooseRotation, chooseFixedWeek, sequenceOf, isSimpleSequence, segmentAt, markRotationDone, REST,
 } from '../lib/rotation.js'
 import { isOn } from '../lib/modules.js'
 import { groupRoutines, folderOpen, setFolderOpen, folderOf } from '../lib/routine-folders.js'
@@ -317,6 +317,23 @@ function Schedule({ S, update, nav, mode }) {
   const stateWord = item => item.state === 'pinned' ? fmtDate(item.on, true)
     : { done: t('Done'), next: t('Up next'), later: t('Later') }[item.state]
   const editing = editLoop && !external
+  const markDone = (id, name) => {
+    const before = useStore.getState().S
+    let ok = false
+    update(s => { ok = markRotationDone(s, id, true) })
+    if (!ok) return
+    useUI.getState().toast(t('Marked “{0}” done.', name), { action: t('Undo'), onAction: () => {
+      const cur = useStore.getState().S
+      // If the mark refilled the pass, restore the queue/rotation snapshot; else just unmark.
+      const q = queueOf(cur)
+      const still = q?.skipped?.includes(id)
+      if (still) update(s => { markRotationDone(s, id, false) })
+      else update(s => {
+        if (before.rotation) s.rotation = structuredClone(before.rotation)
+        if (before.queue) s.queue = structuredClone(before.queue)
+      })
+    } })
+  }
 
   return <>
     <Section className="plan-mode" tour="plan-mode" footer={mode === 'rotation'
@@ -388,6 +405,8 @@ function Schedule({ S, update, nav, mode }) {
               <div className="ss">{item ? stateWord(item) : rest ? t('A day off before the next one') : r ? exCount(r.ex.length) : ''}</div>
             </div>
             {r && !rest && !editing && <MiniBodyMap routines={[r]} body={S.body} />}
+            {!rest && item && item.state !== 'done' && !editing && managed && <button className="plan-textbtn" aria-label={t('Mark {0} done', said(sayName))} title={t('Mark done')}
+              onClick={() => markDone(id, name)}>{t('Mark done')}</button>}
             {editing && seq.length > 1 && <button className="plan-handle" aria-label={t('Move {0}', said(sayName))} title={t('Drag to reorder')}
               {...loopReorder.handle(i)}><Icon name="chevronsUpDown" /></button>}
           </div>

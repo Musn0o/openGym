@@ -18,6 +18,7 @@ export const moduleCopy = () => ({
   integrations: [t('Integrations'), t('Webhooks for Home Assistant and friends, and the MCP server.')],
   community: [t('Community'), t('Exercises, plans and sounds people on your server shared, and a way to share yours.')],
   seasonal: [t('Seasonal themes'), t('Halloween and friends, little extras for the time of year. All optional.')],
+  music: [t('Music'), t('Playlists for your workouts, with music that keeps playing when the screen is off.')],
 })
 
 export const groupCopy = () => ({

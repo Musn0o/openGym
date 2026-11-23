@@ -102,7 +102,7 @@ describe('the root', () => {
     expect(host.querySelector('.sp-acct .lrow-s').textContent).toBe('Your data lives on this device. Sign in to sync.')
     // a guest in a browser has no reminders (no push server) and no Coach page (the server's Coach)
     // #1105: what you change each week, then what you set once, then connections (option C)
-    expect(titles()).toEqual(['Guest', 'Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Equipment', 'Look & Home', 'Modules', 'Integrations', 'Use your subscription', 'Data & backup', 'About & updates'])
+    expect(titles()).toEqual(['Guest', 'Workout', 'Timer alerts', 'Plan & schedule', 'Music', 'Units & language', 'Equipment', 'Look & Home', 'Modules', 'Integrations', 'Use your subscription', 'Data & backup', 'About & updates'])
     expect([...host.querySelectorAll('.sect-t')].map(h => h.textContent)).toEqual(['Training', 'Set once', 'Connections'])
     expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Cards')
     expect(rowTitled('Timer alerts').querySelector('.lrow-v').textContent).toBe('Sound · Vibrate')
@@ -303,6 +303,7 @@ describe('the search lands on a row', () => {
     'zepp: Install the watch app', // a link to the install guide
     'integrations: Strava', 'integrations: openNutrition', // brand names, not translated: the Integrations page's own words find them
     'live: Effort', // reads "Effort (RIR)" once effort is on; "Effort per set" answers the word
+    'music: No playlists yet', // empty state, not a setting
   ])
   // The other way round (#1105): every row a page shows can be found, so a new row cannot slip
   // past the search. A row that opens a page (a sub-page, or Zepp inside Watches) counts through

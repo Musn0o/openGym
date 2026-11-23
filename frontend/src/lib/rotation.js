@@ -33,7 +33,7 @@
 // old pass would immediately tick an item of the new one.
 
 import { isoOf, todayISO, uid } from './format.js'
-import { queueOf, queueView } from './queue.js'
+import { queueOf, queueView, queueRemaining } from './queue.js'
 
 const routineIdsOf = w => (Array.isArray(w?.routineIds) ? w.routineIds : (w?.routineId ? [w.routineId] : []))
 const dayAfter = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 1); return isoOf(d) }
@@ -350,4 +350,51 @@ export function refillIfComplete(s, today = todayISO(), now = Date.now()) {
   const last = creditWindow(s, q).filter(w => w.d <= latestDay(today))
     .sort((x, y) => (x.d === y.d ? (x.start || 0) - (y.start || 0) : x.d < y.d ? -1 : 1)).at(-1)
   return last ? refillAfter(s, last, today, now) : false
+}
+
+/**
+ * Plan's "Mark done": mark a rotation slot done without logging a workout. Adds the routine id to
+ * `S.queue.skipped` (a synthetic done marker the DONE RULE reads), so the loop advances and Home
+ * shows the next session. No workout is created and no stats change. Only for a pass this app
+ * manages. Returns true when it changed something.
+ *
+ * `mark === true` marks an undone slot. `mark === false` unmarks a previously skipped slot in the
+ * current pass. Completing the pass by marks refills it like a normal completion, but anchored to
+ * `today` (no real workout to set the one-day boundary from). Undo of a mark that caused a refill
+ * is handled by the UI via a state snapshot.
+ */
+export function markRotationDone(s, id, mark = true, today = todayISO(), now = Date.now()) {
+  const q = queueOf(s)
+  if (!q?.rotationId || !s.rotation?.id || q.rotationId !== s.rotation.id) return false
+  if (!q.ids.includes(id)) return false
+  if (mark) {
+    if (!queueRemaining(s, today).includes(id)) return false
+    const next = q.skipped?.includes(id) ? q.skipped : [...(q.skipped || []), id]
+    s.queue = { ...s.queue, skipped: next }
+    if (queueView(s, today)?.complete) refillAfterSkipped(s, today, now)
+    return true
+  }
+  if (!q.skipped?.includes(id)) return false
+  const skipped = q.skipped.filter(x => x !== id)
+  s.queue = { ...s.queue, ...(skipped.length ? { skipped } : {}) }
+  if (!skipped.length) delete s.queue.skipped
+  return true
+}
+
+// A pass closed by marks alone has no crediting workout. Refill like refillAfter, anchored to
+// today: the next pass starts tomorrow only when a real workout closed it; marks mean "I already
+// did these", so the next round can start now/today by the same rule as saveRotation's edit.
+function refillAfterSkipped(s, today, now) {
+  const q = queueOf(s)
+  const full = sequenceOf(s)
+  if (full.length && !isSimpleSequence(full)) {
+    advanceLoop(s, q, null, today, now)
+    return true
+  }
+  const seq = rotationIds(s)
+  if (!isCircular(q.ids, seq)) return false
+  const last = [...q.ids].reverse().find(id => (q.skipped || []).includes(id)) ?? q.ids.at(-1)
+  sweepPins(s, q.ids, today)
+  s.queue = newPass(rotate(seq, last), s.rotation.label || '', s.rotation.id, today, sinceAfter(s, q, now))
+  return true
 }

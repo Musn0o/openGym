@@ -48,6 +48,8 @@ export const MODULES = [
     desc: 'Exercises, plans and sounds people on your server shared, and a way to share yours.' },
   { id: 'seasonal', group: 'extras', icon: 'pumpkin', tint: 'var(--orange)', title: 'Seasonal themes',
     desc: 'Halloween and friends, little extras for the time of year. All optional.' },
+  { id: 'music', group: 'extras', icon: 'music', tint: 'var(--pink)', title: 'Music',
+    desc: 'Playlists for your workouts, with music that keeps playing when the screen is off.' },
 ]
 export const MODULE_IDS = MODULES.map(m => m.id)
 export const MODULE = Object.fromEntries(MODULES.map(m => [m.id, m]))

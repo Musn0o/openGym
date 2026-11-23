@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scheduleModeOf, queueRecovery, rotationIds, startPass, saveRotation, startNewPass, stopPass, refillAfter, refillIfComplete, chooseRotation, chooseFixedWeek, segmentAt, sequenceOf, isSimpleSequence, REST } from './rotation.js'
+import { scheduleModeOf, queueRecovery, rotationIds, startPass, saveRotation, startNewPass, stopPass, refillAfter, refillIfComplete, markRotationDone, chooseRotation, chooseFixedWeek, segmentAt, sequenceOf, isSimpleSequence, REST } from './rotation.js'
 import { queueNext, queueRemaining, queueView } from './queue.js'
 import { effectiveRoutineIds } from './history.js'
 
@@ -15,6 +15,49 @@ const S = (over = {}) => ({ routines, workouts: [], week: {}, dayPlan: {}, queue
 // real off-by-one in the boundary it's meant to test.
 const w = (id, d, start = NOW - 1000) => ({ id: 'w-' + id + d, d, start, routineIds: [id], routineId: id, name: routines.find(r => r.id === id).name, entries: [] })
 const pass = (ids, over = {}) => ({ ids, since: NOW - 86400000, startsOn: '2026-09-10', label: 'Rotation', ...over })
+
+describe('marking a rotation slot done without logging a workout', () => {
+  it('marks a slot done, advances the loop, and does not create workouts', () => {
+    const s = S({
+      rotation: { id: 'r1', sequence: ['a', 'b', 'c'], label: 'My split' },
+      queue: pass(['a', 'b', 'c'], { rotationId: 'r1' }),
+    })
+    expect(markRotationDone(s, 'a', true, TODAY, NOW)).toBe(true)
+    expect(s.workouts).toEqual([])
+    expect(queueView(s, TODAY).items.map(i => i.state)).toEqual(['done', 'next', 'later'])
+    expect(s.queue.skipped).toEqual(['a'])
+  })
+
+  it('unmarks a skipped slot in the current pass', () => {
+    const s = S({
+      rotation: { id: 'r1', sequence: ['a', 'b', 'c'], label: 'My split' },
+      queue: pass(['a', 'b', 'c'], { rotationId: 'r1', skipped: ['a'] }),
+    })
+    expect(markRotationDone(s, 'a', false, TODAY, NOW)).toBe(true)
+    expect(queueView(s, TODAY).items.map(i => i.state)).toEqual(['next', 'later', 'later'])
+    expect(s.queue.skipped).toBeUndefined()
+  })
+
+  it('refills when marks complete the pass, anchored to today', () => {
+    const s = S({
+      rotation: { id: 'r1', sequence: ['a', 'b', 'c'], label: 'My split' },
+      queue: pass(['a', 'b', 'c'], { rotationId: 'r1', skipped: ['a', 'b'] }),
+    })
+    expect(markRotationDone(s, 'c', true, TODAY, NOW)).toBe(true)
+    expect(s.queue.ids).toEqual(['a', 'b', 'c'])
+    expect(s.queue.startsOn).toBe(TODAY)
+    expect(s.queue.skipped).toBeUndefined()
+    expect(queueView(s, TODAY).complete).toBe(false)
+  })
+
+  it('does nothing for an external queue, unknown id, or already-done slot', () => {
+    const ext = S({ rotation: { id: 'r1', sequence: ['a', 'b'], label: 'R' }, queue: pass(['a', 'b']) })
+    expect(markRotationDone(ext, 'a', true, TODAY, NOW)).toBe(false)
+    const s = S({ rotation: { id: 'r1', sequence: ['a', 'b'], label: 'R' }, queue: pass(['a', 'b'], { rotationId: 'r1' }), workouts: [w('a', '2026-09-11')] })
+    expect(markRotationDone(s, 'a', true, TODAY, NOW)).toBe(false)
+    expect(markRotationDone(s, 'gone', true, TODAY, NOW)).toBe(false)
+  })
+})
 
 describe('the selected mode is derived from the live queue', () => {
   it('no usable queue is Fixed Week; a usable one is Rotation', () => {

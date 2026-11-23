@@ -88,6 +88,8 @@ import { normalizeRepRange } from './lib/rep-range.js'
 import { isBackoff, backoffWeights } from './lib/backoff.js'
 import { isPyramid, normalizePyramid, normalizePyramidRest, normalizePyramidWeight, pyramidFromFlat, flatFromPyramid, pyramidLabel, PYRAMID_MAX, MAX_PYRAMID_SETS, PYRAMID_PRESETS } from './lib/pyramid.js'
 import { MOBILE, shareExport, shareExportBlob, nativePlatform } from './lib/mobile.js'
+import { getMusic, setMusic } from './lib/music-store.js'
+import { playMusicPlaylist, stopMusic } from './lib/music-player.js'
 import { loadHealth } from './lib/health-sync.js'
 import { speedUnitOf, toSpeed, fromSpeed } from './lib/speed.js'
 import { clampIncline, inclineFits, INCLINE_MAX, INCLINE_STEP, clampLevel, levelFits, LEVEL_MAX } from './lib/incline.js'
@@ -3996,10 +3998,33 @@ export function DayNoteRow({ iso, note }) {
 }
 
 /* ============================ workout lifecycle ============================ */
+function musicPickSheet(routineIds, opts) {
+  const st = S()
+  const music = getMusic()
+  if (!MOBILE || !isOn(st, 'music') || music.playlists.length === 0) { startFlow(routineIds, { ...opts, musicChosen: true }); return }
+  const active = music.active || music.last
+  const go = playlistId => {
+    if (playlistId) setMusic(m => ({ ...m, last: playlistId, active: playlistId }))
+    startFlow(routineIds, { ...opts, musicChosen: true, musicPlaylistId: playlistId || null })
+  }
+  ui().openSheet(close => <div style={{ display: 'grid', gap: 10 }}>
+    <h3>{t('Workout music')}</h3>
+    <p className="small dim" style={{ margin: 0 }}>{t('Pick a playlist for this session.')}</p>
+    <div className="list">
+      <button className="item" onClick={() => { close(); go(null) }}><span className="lrow-i"><Icon name="close" /></span><div className="grow"><div className="tt">{t('No music')}</div></div></button>
+      {music.playlists.map(p => <button key={p.id} className="item" onClick={() => { close(); go(p.id) }}>
+        <span className="lrow-i"><Icon name={p.id === active ? 'check' : 'music'} /></span>
+        <div className="grow"><div className="tt">{p.name}</div><div className="ss">{t('{0} songs', p.tracks.length)}{p.id === active ? ` · ${t('Selected for workout')}` : ''}</div></div>
+      </button>)}
+    </div>
+  </div>)
+}
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
 // `opts.lead`: exercises a last session did not get to (lib/leftovers.js, #985), done first.
 export function startFlow(routineIds, opts = {}) {
+  // Music picker (Android-first): choose a local playlist before the session starts.
+  if (!opts.musicChosen && isOn(S(), 'music')) { musicPickSheet(routineIds, opts); return }
   // The daily-form check-in comes first (v1.4.5, lib/daily-form.js): only when switched on
   // (Settings → Workout), never with the Health module off, once a day.
   if (!opts.checked && checkinMode(S(), todayISO())) { dailyCheckinSheet(routineIds, opts); return }
@@ -4029,7 +4054,7 @@ function dailyCheckinSheet(routineIds, opts) {
 }
 // `opts` from the Apple Watch (lib/watch-sync.js): a session started there keeps the watch's id,
 // so the sets ticked on it find it, and its start time, however late the phone hears of it.
-export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null } = {}) {
+export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null, musicPlaylistId = null } = {}) {
   const st = S()
   const built = buildCombinedEntries(st, routineIds)
   const { routineIds: rids, routines } = built
@@ -4059,6 +4084,7 @@ export function beginWorkout(routineIds, bw, { id = null, start = null, lead = n
   }
   useUI.getState().stopRest()
   navToWorkout()
+  if (musicPlaylistId) playMusicPlaylist(musicPlaylistId, 0).catch(() => {})
   // Started inside a gym reminder place linked to an equipment profile: that gym's (#808).
   autoGymHere()
   // Today's rows from a coach or planner that did not fit this routine (#972): said, not applied.
@@ -4820,6 +4846,7 @@ function doFinishWorkout({ end: endAt, auto } = {}) {
   })
   useStore.getState().autoBackupNow()
   useUI.getState().stopRest()
+  stopMusic().catch(() => {})
   // A hold still counting (a plank left unchecked, then Finish early) goes with the workout, as
   // on Discard: its bar is app-wide and would chime over the summary, and its callback writes
   // into s.active, which is gone. What it held is not logged, like any set left unchecked.
