@@ -4084,7 +4084,7 @@ export function beginWorkout(routineIds, bw, { id = null, start = null, lead = n
   }
   useUI.getState().stopRest()
   navToWorkout()
-  if (musicPlaylistId) playMusicPlaylist(musicPlaylistId, 0).catch(() => {})
+  if (musicPlaylistId) playMusicPlaylist(musicPlaylistId).catch(() => {})
   // Started inside a gym reminder place linked to an equipment profile: that gym's (#808).
   autoGymHere()
   // Today's rows from a coach or planner that did not fit this routine (#972): said, not applied.

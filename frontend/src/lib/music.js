@@ -8,12 +8,18 @@ import { uid } from './format.js'
 
 export const MUSIC_DIR = 'opengym-music'
 
+export const SORTS = ['custom', 'name', 'duration', 'recent']
+
 export const musicOf = S => {
   const m = Array.isArray(S?.playlists) ? S : S?.music
   const playlists = Array.isArray(m?.playlists) ? m.playlists.map(normalizePlaylist).filter(Boolean) : []
   const last = typeof m?.last === 'string' && playlists.some(p => p.id === m.last) ? m.last : null
   const active = typeof m?.active === 'string' && playlists.some(p => p.id === m.active) ? m.active : last
-  return { playlists, last, active }
+  const progress = {}
+  for (const [id, n] of Object.entries(m?.progress || {})) if (playlists.some(p => p.id === id) && Number.isInteger(n) && n >= 0) progress[id] = n
+  const sorts = {}
+  for (const [id, sort] of Object.entries(m?.sorts || {})) if (playlists.some(p => p.id === id) && SORTS.includes(sort)) sorts[id] = sort
+  return { playlists, last, active, progress, sorts }
 }
 
 function normalizePlaylist(p) {
@@ -33,6 +39,7 @@ function normalizeTrack(t) {
     ...(src ? { src } : {}),
     ...(uri ? { uri } : {}),
     ...(Number.isFinite(t.dur) && t.dur > 0 ? { dur: Math.round(t.dur) } : {}),
+    ...(Number.isFinite(t.at) && t.at > 0 ? { at: Math.round(t.at) } : {}),
   }
 }
 
@@ -55,7 +62,8 @@ export function removePlaylist(S, id) {
 
 export function addTracks(S, playlistId, tracks) {
   const m = musicOf(S)
-  const clean = (Array.isArray(tracks) ? tracks : []).map(normalizeTrack).filter(Boolean)
+  const now = Date.now()
+  const clean = (Array.isArray(tracks) ? tracks : []).map(normalizeTrack).filter(Boolean).map(t => ({ ...t, at: t.at || now }))
   return { ...m, playlists: m.playlists.map(p => p.id === playlistId ? { ...p, tracks: [...p.tracks, ...clean] } : p) }
 }
 
@@ -87,4 +95,35 @@ export function setLastPlaylist(S, id) {
 export function setActivePlaylist(S, id) {
   const m = musicOf(S)
   return { ...m, active: id && m.playlists.some(p => p.id === id) ? id : null }
+}
+
+export function setPlaybackIndex(S, playlistId, index) {
+  const m = musicOf(S)
+  if (!playlistId || !m.playlists.some(p => p.id === playlistId) || !Number.isInteger(index) || index < 0) return m
+  return { ...m, progress: { ...m.progress, [playlistId]: index } }
+}
+
+export function setPlaylistSort(S, playlistId, sort) {
+  const m = musicOf(S)
+  if (!playlistId || !m.playlists.some(p => p.id === playlistId) || !SORTS.includes(sort)) return m
+  return { ...m, sorts: { ...m.sorts, [playlistId]: sort } }
+}
+
+export function renameTrack(S, playlistId, trackId, name) {
+  const m = musicOf(S)
+  const clean = (name || '').trim().slice(0, 120)
+  if (!clean) return m
+  return { ...m, playlists: m.playlists.map(p => p.id !== playlistId ? p : { ...p, tracks: p.tracks.map(t => t.id === trackId ? { ...t, name: clean } : t) }) }
+}
+
+export function playlistTracks(S, playlistId) {
+  const m = musicOf(S)
+  const p = m.playlists.find(x => x.id === playlistId)
+  if (!p) return []
+  const sort = m.sorts[playlistId] || 'custom'
+  const tracks = p.tracks.slice()
+  if (sort === 'name') tracks.sort((a, b) => a.name.localeCompare(b.name))
+  if (sort === 'duration') tracks.sort((a, b) => (a.dur || 0) - (b.dur || 0))
+  if (sort === 'recent') tracks.sort((a, b) => (b.at || 0) - (a.at || 0))
+  return tracks
 }

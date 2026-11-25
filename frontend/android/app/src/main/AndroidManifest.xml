@@ -271,6 +271,11 @@
             android:name=".MusicPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <receiver android:name=".MusicMediaButtonReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
         <!-- The background check before a nudge or a reminder (NudgeCheckJob): asks the paired
              server whether the day was trained elsewhere. Run by JobScheduler only; persisted

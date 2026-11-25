@@ -201,6 +201,7 @@ public class MusicPlayerPlugin extends Plugin {
         i.putExtra(MusicPlaybackService.EXTRA_TRACKS, tracks == null ? "[]" : tracks.toString());
         i.putExtra(MusicPlaybackService.EXTRA_INDEX, index);
         i.putExtra(MusicPlaybackService.EXTRA_TITLE, title);
+        i.putExtra(MusicPlaybackService.EXTRA_PLAYLIST_ID, call.getString("playlistId", ""));
         try {
             if (android.os.Build.VERSION.SDK_INT >= 26) getContext().startForegroundService(i);
             else getContext().startService(i);
@@ -252,7 +253,7 @@ public class MusicPlayerPlugin extends Plugin {
 
     @PluginMethod
     public void state(PluginCall call) {
-        call.resolve(MusicPlaybackService.state());
+        call.resolve(MusicPlaybackService.state(getContext()));
     }
 
     @PluginMethod

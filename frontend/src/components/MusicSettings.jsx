@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { t } from '../lib/i18n.js'
 import { Button, Row, Section } from './ui.jsx'
 import Icon from './Icon.jsx'
 import { useMusic, setMusic, getMusic } from '../lib/music-store.js'
-import { createPlaylist, renamePlaylist, removePlaylist, addTracks, removeTrack, setActivePlaylist } from '../lib/music.js'
-import { scanDeviceMusic, playMusicPlaylist, stopMusic, pauseMusic, resumeMusic, nextMusic, prevMusic, musicState, removeMusicFile } from '../lib/music-player.js'
-import { confirmSheet, menuSheet } from '../sheets.jsx'
+import { createPlaylist, setPlaybackIndex } from '../lib/music.js'
+import { scanDeviceMusic, pauseMusic, resumeMusic, nextMusic, prevMusic, musicState } from '../lib/music-player.js'
 import { useUI } from '../store/useUI.js'
 import { uid } from '../lib/format.js'
+import { addTracks } from '../lib/music.js'
 
-function promptSheet({ title, label, value = '', placeholder = '', confirmText = t('Save'), onConfirm }) {
+export function promptSheet({ title, label, value = '', placeholder = '', confirmText = t('Save'), onConfirm }) {
   useUI.getState().openSheet(close => {
     function Body() {
       const [v, setV] = useState(value)
@@ -27,11 +28,20 @@ function promptSheet({ title, label, value = '', placeholder = '', confirmText =
   })
 }
 
-function MiniPlayer() {
-  const [st, setSt] = useState({ playing: false, title: '', playlist: '' })
+export function MiniPlayer() {
+  const [st, setSt] = useState({ playing: false, title: '', playlist: '', index: 0, playlistId: null })
+  const last = useRef('')
   useEffect(() => {
     let on = true
-    const poll = async () => { const s = await musicState(); if (on) setSt(s) }
+    const poll = async () => {
+      const s = await musicState()
+      if (!on) return
+      setSt(s)
+      if (s.playlistId && Number.isInteger(s.index)) {
+        const key = `${s.playlistId}:${s.index}`
+        if (key !== last.current) { last.current = key; setMusic(m => setPlaybackIndex(m, s.playlistId, s.index)) }
+      }
+    }
     poll()
     const id = setInterval(poll, 1500)
     return () => { on = false; clearInterval(id) }
@@ -49,8 +59,7 @@ function MiniPlayer() {
   </div>
 }
 
-function SongPicker({ playlist, onClose }) {
-  const music = useMusic()
+export function SongPicker({ playlist, onClose }) {
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [library, setLibrary] = useState([])
@@ -66,7 +75,7 @@ function SongPicker({ playlist, onClose }) {
   const filtered = library.filter(t => !q.trim() || t.name.toLowerCase().includes(q.toLowerCase()))
   const toggle = id => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const addSelected = () => {
-    const tracks = library.filter(t => selected.has(t.id) && !existing.has(t.uri || t.src)).map(x => ({ id: uid(), name: x.name, src: x.src, uri: x.uri, dur: x.dur }))
+    const tracks = library.filter(t => selected.has(t.id) && !existing.has(t.uri || t.src)).map(x => ({ id: uid(), name: x.name, src: x.src, uri: x.uri, dur: x.dur, at: Date.now() }))
     if (tracks.length) setMusic(m => addTracks(m, playlist.id, tracks))
     onClose()
   }
@@ -97,38 +106,15 @@ function SongPicker({ playlist, onClose }) {
 
 export default function MusicSettingsPage() {
   const music = useMusic()
-  const [busy, setBusy] = useState(false)
+  const nav = useNavigate()
 
   const addPlaylist = () => promptSheet({
-    title: t('New playlist'),
-    label: t('Name'),
-    placeholder: t('Workout music'),
-    confirmText: t('Create'),
-    onConfirm: name => setMusic(m => createPlaylist(m, name || t('Playlist'))),
-  })
-
-  const rename = p => promptSheet({ title: t('Rename playlist'), label: t('Name'), value: p.name, confirmText: t('Save'), onConfirm: name => setMusic(m => renamePlaylist(m, p.id, name || p.name)) })
-  const remove = p => confirmSheet({ title: t('Delete playlist?'), message: t('This removes the playlist from openGym.'), confirmText: t('Delete'), danger: true, onConfirm: () => setMusic(m => removePlaylist(m, p.id)) })
-
-  const openPicker = playlist => useUI.getState().openSheet(close => <SongPicker playlist={getMusic().playlists.find(p => p.id === playlist.id) || playlist} onClose={close} />)
-
-  const openPlaylist = p => menuSheet({
-    title: p.name,
-    items: [
-      { icon: 'play', label: t('Play'), onClick: () => { setMusic(m => setActivePlaylist(m, p.id)); playMusicPlaylist(p.id, 0) } },
-      { icon: 'check', label: t('Select for workout'), onClick: () => setMusic(m => ({ ...setActivePlaylist(m, p.id), last: p.id })) },
-      { icon: 'music', label: t('Add device music'), onClick: () => openPicker(p) },
-      { icon: 'pencil', label: t('Rename'), onClick: () => rename(p) },
-      { icon: 'trash', label: t('Delete playlist'), danger: true, onClick: () => remove(p) },
-    ],
-  })
-
-  const openTrack = (p, track) => menuSheet({
-    title: track.name,
-    items: [
-      { icon: 'play', label: t('Play from here'), onClick: () => { setMusic(m => setActivePlaylist(m, p.id)); playMusicPlaylist(p.id, p.tracks.findIndex(x => x.id === track.id)) } },
-      { icon: 'trash', label: t('Remove from playlist'), danger: true, onClick: () => { setMusic(m => removeTrack(m, p.id, track.id)); if (track.src) removeMusicFile(track.src) } },
-    ],
+    title: t('New playlist'), label: t('Name'), placeholder: t('Workout music'), confirmText: t('Create'),
+    onConfirm: name => {
+      const next = createPlaylist(music, name || t('Playlist'))
+      setMusic(next)
+      nav('/music/' + next.playlists.at(-1).id)
+    },
   })
 
   const active = music.active || music.last
@@ -138,18 +124,12 @@ export default function MusicSettingsPage() {
       {music.playlists.length === 0 && <Row icon="music" iconTint="var(--pink)" title={t('No playlists yet')} subtitle={t('Create a playlist, then add songs from your device.')} />}
       {music.playlists.map(p => (
         <Row key={p.id} icon={p.id === active ? 'check' : 'music'} iconTint={p.id === active ? 'var(--acc)' : 'var(--pink)'} title={p.name}
-          subtitle={`${t('{0} songs', p.tracks.length)}${p.id === active ? ` · ${t('Selected for workout')}` : ''}`} accessory="chevron" onClick={() => openPlaylist(p)} />
+          subtitle={`${t('{0} songs', p.tracks.length)}${p.id === active ? ` · ${t('Selected for workout')}` : ''}`} accessory="chevron"
+          onClick={() => nav('/music/' + p.id)} />
       ))}
       <div className="row" style={{ gap: 8, padding: '8px 16px 12px' }}>
-        <Button size="sm" variant="tinted" icon="plus" disabled={busy} onClick={addPlaylist}>{t('New playlist')}</Button>
+        <Button size="sm" variant="tinted" icon="plus" onClick={addPlaylist}>{t('New playlist')}</Button>
       </div>
     </Section>
-    {music.playlists.map(p => p.tracks.length > 0 && (
-      <Section key={p.id} title={p.name} footer={p.id === active ? t('Selected for workout') : undefined}>
-        {p.tracks.map(track => (
-          <Row key={track.id} icon="play" iconTint="var(--grey)" title={track.name} accessory="chevron" onClick={() => openTrack(p, track)} />
-        ))}
-      </Section>
-    ))}
   </>
 }

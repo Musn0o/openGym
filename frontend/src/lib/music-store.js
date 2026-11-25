@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { MUSIC_DIR, musicOf } from './music.js'
 
 const KEY = 'gym_music_v1'
-const EMPTY = { playlists: [], last: null, active: null }
+const EMPTY = { playlists: [], last: null, active: null, progress: {}, sorts: {} }
 let state = load()
 const subs = new Set()
 

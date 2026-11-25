@@ -117,6 +117,7 @@ const Muscles = lazyView(() => import('./views/Muscles.jsx'))
 // The community library of the server (views/Community.jsx): only with LIBRARY=on and the module on.
 const Community = lazyView(() => import('./views/Community.jsx'))
 const SettingsRoute = lazyView(() => import('./views/Settings.jsx').then(m => ({ default: m.SettingsRoute })))
+const MusicPlaylist = lazyView(() => import('./views/MusicPlaylist.jsx'))
 // The app tour's overlay (components/Tour.jsx): fetched when it opens, never before.
 const loadTour = () => import('./components/Tour.jsx')
 const Tour = lazy(loadTour)
@@ -421,6 +422,7 @@ function Shell() {
       <Route path="/assistants" element={<Assistants />} />
       <Route path="/settings" element={<SettingsRoute />} />
       <Route path="/settings/:page" element={<SettingsRoute />} />
+      {isOn(S, 'music') && <Route path="/music/:id" element={<MusicPlaylist />} />}
       {/* The Coach screens gate themselves on the instance config; the routes exist whenever the
           AI Coach module is on, so a deep link from a notification lands somewhere sane rather
           than on the catch-all. With the module off, Home is the sane place. */}
